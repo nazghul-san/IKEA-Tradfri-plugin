@@ -12,5 +12,5 @@ docker run \
   -v /etc/localtime:/etc/localtime:ro \
   -v `pwd`:/usr/src/app \
   -p 1234:1234 \
-  -t -i --rm aiocoap bash
+  -t -i --rm aiocoap python3 tradfri_coap.py
 

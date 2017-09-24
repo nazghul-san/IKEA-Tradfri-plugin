@@ -14,4 +14,4 @@ esac
 
 echo $DOCKERFILE
 
-docker build -t ikea-plugin -f "$PWD/$DOCKERFILE" .
+docker build -t aiocoap -f "$PWD/$DOCKERFILE" .
