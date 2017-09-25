@@ -71,7 +71,7 @@ class IkeaFactory():
                 deviceConfig[aLight.device_info.model_number] = deviceDefaults
                 configChanged = True
             
-            resultDevices.append({"DeviceID": aLight.id, "Name": aLight.name, "Type": "Light", "Dimmable": stringToBool(deviceConfig[aLight.device_info.model_number]['dimmable']), "HasWB": stringToBool(deviceConfig[aLight.device_info.model_number]['haswb']), "HasRGB": stringToBool(deviceConfig[aLight.device_info.model_number]['hasrgb'])})
+            resultDevices.append({"DeviceID": aLight.id, "Name": aLight.name, "State": aLight.light_control.lights[0].state, "Level": aLight.light_control.lights[0].dimmer, "Hex":aLight.light_control.lights[0].hex_color, "Type": "Light", "Dimmable": stringToBool(deviceConfig[aLight.device_info.model_number]['dimmable']), "HasWB": stringToBool(deviceConfig[aLight.device_info.model_number]['haswb']), "HasRGB": stringToBool(deviceConfig[aLight.device_info.model_number]['hasrgb'])})
 
         for aGroup in self.groups:
             #print (aGroup)
