@@ -90,22 +90,32 @@ class BasePlugin:
                 Devices[aUnit].Delete()
 
     def updateDeviceState(self, deviceState):
-
+        Domoticz.Log("updateDevicestate: {0}".format(deviceState))
         for aDev in deviceState:
             devID = str(aDev["DeviceID"])
             targetUnit = self.lights[devID]['Unit']
             nVal = 0
 
-            sValInt = int((aDev["Level"]/250)*100)
-            if sValInt == 0:
-                sValInt = 1
+            sVal = None
 
+            if "Level" in aDev:
+                if aDev["Level"] is not None:
+                    sValInt = int((aDev["Level"]/250)*100)
+                    if sValInt == 0:
+                        sValInt = 1
+                else:
+                    sValInt = 0
+            else:
+                sValInt = 0
+                
             sVal = str(sValInt)
 
-            if aDev["State"] == True:
-                nVal = 1
-            if aDev["State"] == False:
-                nVal = 0
+            nVal = 0
+            if "State" in aDev:
+                if aDev["State"] == True:
+                    nVal = 1
+                if aDev["State"] == False:
+                    nVal = 0
 
             Devices[targetUnit].Update(nValue=nVal, sValue=sVal)
 
@@ -169,6 +179,7 @@ class BasePlugin:
 
             if action == "getLights":
                 self.registerDevices(command['result'])
+                self.updateDeviceState(command['result'])
 
             if action == "deviceUpdate":
                 self.updateDeviceState(command['result'])
