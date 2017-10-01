@@ -92,6 +92,8 @@ class IkeaFactory():
         answer["result"] =  resultDevices
 
         client.send_data(answer)
+        loop.create_task(self.monitor(lights))
+
 
     async def getStates(self, client):
 
@@ -101,7 +103,40 @@ class IkeaFactory():
                 print(aLight)
 
 
+
+    # Observations
+
+    async def monitor(self, lights):
+        observe_command = lights[1].observe(self.observe_callback, self.observe_err_callback, duration=60)
+        
+        observationTask = None
+
+        i = 0
+        while True:
+            i=i+1
+            if i == 20:
+                print("Stopping task")
+                if not observationTask.cancelled():
+                    observationTask.cancel()
+                    i=1
+            if i == 1:
+                print("Starting task")
+                observationTask = asyncio.ensure_future(self.api(observe_command))
+
+            print("iteration: {0} Taks: {1}".format(i, len(loop.Tasks))
+            await asyncio.sleep(1)
+
+            # print("Starting observe")
             
+            # await self.api(observe_command)
+
+
+    def observe_callback(self, updated_device):
+        light = updated_device.light_control.lights[0]
+        print("Received message for: %s" % light)
+
+    def observe_err_callback(self, err):
+        print('observe error:', err)  
 
 # an instance of EchoProtocol will be created for each client connection.
 class IkeaProtocol(asyncio.Protocol):
