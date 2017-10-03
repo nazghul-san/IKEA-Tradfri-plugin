@@ -14,4 +14,4 @@ esac
 
 echo $DOCKERFILE
 
-docker build -t aiocoap -f "$PWD/$DOCKERFILE" .
+docker build $1 -t aiocoap -f "$PWD/$DOCKERFILE" .

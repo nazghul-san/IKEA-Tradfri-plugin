@@ -44,6 +44,10 @@ class IkeaFactory():
     devices = None
     groups = None
 
+    deviceIDs = []
+    groupIDs = []
+    doObserve = False
+
     def __init__(self):
         pass
 
@@ -78,10 +82,12 @@ class IkeaFactory():
                 levelVal = 0
                 
             resultDevices.append({"DeviceID": aLight.id, "Name": aLight.name, "State": aLight.light_control.lights[0].state, "Level": aLight.light_control.lights[0].dimmer, "Hex":aLight.light_control.lights[0].hex_color, "Type": "Light", "Dimmable": stringToBool(deviceConfig[aLight.device_info.model_number]['dimmable']), "HasWB": stringToBool(deviceConfig[aLight.device_info.model_number]['haswb']), "HasRGB": stringToBool(deviceConfig[aLight.device_info.model_number]['hasrgb'])})
+            self.deviceIDs.append(aLight.id)
 
         for aGroup in self.groups:
             #print (aGroup)
             resultDevices.append({"DeviceID": aGroup.id, "Name": "Group - "+aGroup.name, "Type": "Group", "Dimmable": True, "HasWB": False})
+            self.groupIDs.append(aGroup.id)
 
         if configChanged:
             with open(INIFILE, "w") as configfile:
@@ -92,51 +98,81 @@ class IkeaFactory():
         answer["result"] =  resultDevices
 
         client.send_data(answer)
-        loop.create_task(self.monitor(lights))
+        # loop.create_task(self.monitor(lights))
 
 
-    async def getStates(self, client):
+    # async def getStates(self, client):
 
-        if self.devices is not None:
-            lights = [dev for dev in self.devices if dev.has_light_control]
-            for aLight in lights:
-                print(aLight)
+    #     if self.devices is not None:
+    #         lights = [dev for dev in self.devices if dev.has_light_control]
+    #         for aLight in lights:
+    #             print(aLight)
 
 
+    async def setState(self, client, command):
+        print(command)
+        answer = {}
+        answer["action"] = "setState"
+        answer["status"] = "Ok"
+        answer["deviceID"] = command['deviceID']
+
+        deviceID = int(command['deviceID'])
+        state = command['state']
+        setStateCommand = None
+
+        if state == "On":
+            state = True
+
+        if state == "Off":
+            state = False
+
+        if deviceID in self.deviceIDs:
+            targetDevice = await self.api(await self.api(self.gateway.get_device(deviceID)))
+            setStateCommand = targetDevice.light_control.set_state(state)
+            
+
+        if deviceID in self.groupIDs:
+            targetGroup = await self.api(*await self.api(self.gateway.get_group(deviceID)))
+            setStateCommand = targetGroup.set_state(state)
+
+        if setStateCommand is not None:
+            await api(setStateCommand)
+
+        client.send_data(answer)
 
     # Observations
 
-    async def monitor(self, lights):
-        observe_command = lights[1].observe(self.observe_callback, self.observe_err_callback, duration=60)
+    # async def monitor(self, lights):
+    #     observe_command = lights[1].observe(self.observe_callback, self.observe_err_callback, duration=60)
         
-        observationTask = None
+    #     observationTask = None
 
-        i = 0
-        while True:
-            i=i+1
-            if i == 20:
-                print("Stopping task")
-                if not observationTask.cancelled():
-                    observationTask.cancel()
-                    i=1
-            if i == 1:
-                print("Starting task")
-                observationTask = asyncio.ensure_future(self.api(observe_command))
+    #     i = 0
+    #     while True:
+    #         i=i+1
+    #         if i == 20:
+    #             print("Stopping task")
+    #             if not observationTask.cancelled():
+    #                 observationTask.cancel()
+    #                 i=1
+    #         if i == 1:
+    #             print("Starting task")
+    #             observationTask = asyncio.ensure_future(self.api(observe_command))
 
-            print("iteration: {0} Taks: {1}".format(i, len(loop.Tasks))
-            await asyncio.sleep(1)
+    #         print("iteration: {0} Taks: {1}".format(i, len(loop.Tasks))
+    #         await asyncio.sleep(1)
 
-            # print("Starting observe")
+    #         # print("Starting observe")
             
-            # await self.api(observe_command)
+    #         # await self.api(observe_command)
 
 
-    def observe_callback(self, updated_device):
-        light = updated_device.light_control.lights[0]
-        print("Received message for: %s" % light)
+    # def observe_callback(self, updated_device):
+    #     light = updated_device.light_control.lights[0]
+    #     print("Received message for: %s" % light)
 
-    def observe_err_callback(self, err):
-        print('observe error:', err)  
+    # def observe_err_callback(self, err):
+    #     print('observe error:', err)  
 
 # an instance of EchoProtocol will be created for each client connection.
 class IkeaProtocol(asyncio.Protocol):
@@ -168,6 +204,9 @@ class IkeaProtocol(asyncio.Protocol):
 
             if command['action']=="getStates":
                 loop.create_task(self.factory.getStates(self))
+
+            if command['action']=="setState":
+                loop.create_task(self.factory.setState(self, command))
 
             # if command['action']=="getLights":
             #     self.factory.sendDeviceList(self)
