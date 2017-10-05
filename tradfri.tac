@@ -13,7 +13,7 @@ import twisted.scripts.twistd as t
 from pytradfri import Gateway
 from pytradfri.api.libcoap_api import api_factory
 
-version = "0.3"
+version = "0.4"
 verbose = False
 
 INIFILE = "{0}/devices.ini".format(os.path.dirname(os.path.realpath(__file__)))
@@ -194,6 +194,8 @@ class AdaptorFactory(ServerFactory):
     devices = None
     groups = None
 
+    observe = False
+
     def __init__(self):
         self.clients = []
         self.gateway = None
@@ -243,12 +245,20 @@ class AdaptorFactory(ServerFactory):
             self.devices = self.api(*self.api(self.gateway.get_devices()))
             self.groups = self.api(*self.api(self.gateway.get_groups()))
         
-            for dev in self.devices:
-                if dev.has_light_control:
-                    self.ikeaLights[dev.id] = ikeaLight(factory=self, device=dev)
+            try:
+                for dev in self.devices:
+                    if dev.has_light_control:
+                        self.ikeaLights[dev.id] = ikeaLight(factory=self, device=dev)
+            except Exception as e:
+                print("Unable to iterate devices")
 
-            for group in self.groups:
-                self.ikeaGroups[group.id] = ikeaGroup(factory=self, group=group)
+            try:
+                for group in self.groups:
+                    self.ikeaGroups[group.id] = ikeaGroup(factory=self, group=group)
+            except Exception as e:
+                print("Unable to iterate groups")
+            
+            self.observe = observe
 
             if observe=="True":
                 if not self.lc.running:
@@ -259,6 +269,7 @@ class AdaptorFactory(ServerFactory):
 
             client.transport.write(json.dumps({"action":"setConfig", "status": "Ok"}).encode(encoding='utf_8'))
         
+            # Send inital state
             self.announce()
             
         else:
@@ -305,16 +316,21 @@ class AdaptorFactory(ServerFactory):
         answer["status"] = "Ok"
 
         setLevelCommand = None
+        targetDevice = None
+
         deviceID=int(deviceID)
+        target = None
 
         if deviceID in self.ikeaLights.keys():
             targetDeviceCommand = self.gateway.get_device(deviceID)
             targetDevice = self.api(targetDeviceCommand)
             setLevelCommand = targetDevice.light_control.set_dimmer(level)
+            target = self.ikeaLights[deviceID]
 
         if deviceID in self.ikeaGroups.keys():
             targetDevice=self.api(self.gateway.get_group(deviceID))
             setLevelCommand = targetDevice.set_dimmer(level)
+            target = self.ikeaGroups[deviceID]
 
         if setLevelCommand != None:
             self.api(setLevelCommand)
@@ -322,6 +338,10 @@ class AdaptorFactory(ServerFactory):
             answer["status"] = "Error"
 
         client.transport.write(json.dumps(answer).encode(encoding='utf_8'))
+  
+        if self.observe=="False":
+            self.announce()
+
 
     def setState(self, client, deviceID, state):
         answer = {}
@@ -329,6 +349,8 @@ class AdaptorFactory(ServerFactory):
         answer["status"] = "Ok"
 
         setStateCommand = None
+        target = None
+        targetDevice = None
         deviceID = int(deviceID)
 
         if state == "On":
@@ -341,12 +363,14 @@ class AdaptorFactory(ServerFactory):
             # targetDeviceCommand = self.gateway.get_device(int(deviceID))
             targetDevice = self.api(self.gateway.get_device(int(deviceID)))
             setStateCommand = targetDevice.light_control.set_state(state)
+            target = self.ikeaLights[deviceID]
 
         if deviceID in self.ikeaGroups.keys():
             # targetDeviceCommand = self.gateway.get_group(int(deviceID))
             targetDevice = self.api(self.gateway.get_group(int(deviceID)))
             print(targetDevice)
             setStateCommand = targetDevice.set_state(state)
+            target = self.ikeaGroups[deviceID]
 
         try:
             self.api(setStateCommand)
@@ -356,6 +380,8 @@ class AdaptorFactory(ServerFactory):
         
         client.transport.write(json.dumps(answer).encode(encoding='utf_8'))
 
+        if self.observe=="False":
+            self.announce()
 
     def setWB(self, client, deviceID, hex):
         answer = {}
@@ -371,11 +397,24 @@ class AdaptorFactory(ServerFactory):
         self.api(setStateCommand)
         client.transport.write(json.dumps(answer).encode(encoding='utf_8'))
 
+
+
+currentError = False
+
+def error(f):
+    global currentError
+    print (f.getErrorMessage())
+    currentError = True
+    
 if __name__ == "__main__":
-    print ("IKEA-tradfri COAP-adaptor version {0} started (command line)!\nWaiting for connection".format(version))
+    print ("IKEA-tradfri COAP-adaptor version {0} started (command line)!".format(version))
     verbose = True
-    endpoints.serverFromString(reactor, "tcp:1234").listen(AdaptorFactory())
-    reactor.run()
+    
+    endpoints.serverFromString(reactor, "tcp:1234").listen(AdaptorFactory()).addErrback(error)
+    
+    if not currentError:
+        reactor.run()
+    
 else:
     factory = AdaptorFactory()
     service = TCPServer(1234, factory)
