@@ -8,9 +8,26 @@ RUN apt-get update -y && \
 RUN mkdir -p /usr/src/app /usr/src/build
 
 RUN python3 -m pip install cython 
-RUN python3 -m pip install ipython 
-RUN python3 -m pip install --upgrade "git+https://github.com/chrysn/aiocoap#egg=aiocoap[all]"
-RUN python3 -m pip install pytradfri
+
+WORKDIR /usr/src/build
+RUN git clone --depth 1 https://git.fslab.de/jkonra2m/tinydtls.git
+WORKDIR /usr/src/build/tinydtls
+RUN autoreconf
+RUN ./configure --with-ecc --without-debug
+WORKDIR /usr/src/build/tinydtls/cython
+RUN python3 setup.py install
+
+WORKDIR /usr/src/build
+RUN git clone --depth 1 https://github.com/chrysn/aiocoap
+WORKDIR /usr/src/build/aiocoap
+RUN git reset --hard 3286f48f0b949901c8b5c04c0719dc54ab63d431
+RUN python3 -m pip install --upgrade pip setuptools
+RUN python3 -m pip install .
+
+WORKDIR /usr/src/build
+RUN git clone https://github.com/ggravlingen/pytradfri.git
+WORKDIR /usr/src/build/pytradfri
+RUN python3 setup.py install
 
 WORKDIR /usr/src/app
 
