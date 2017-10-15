@@ -37,6 +37,20 @@ if os.path.exists(INIFILE):
 
 loop = asyncio.get_event_loop()
 
+def cleanupTasks():
+    for task in asyncio.Task.all_tasks():
+       task.cancel()
+  
+async def heartbeat(verbose=False):
+    while 1:
+        print("\nTasks: {0}".format(len(asyncio.Task.all_tasks())))
+        
+        if verbose:
+            for task in asyncio.Task.all_tasks():
+                print(task)
+        
+        await asyncio.sleep(2)
+
 class IkeaFactory():
     gateway = None
     api = None
@@ -127,18 +141,45 @@ class IkeaFactory():
             state = False
 
         if deviceID in self.deviceIDs:
-            targetDevice = await self.api(await self.api(self.gateway.get_device(deviceID)))
+            targetDevice = await self.api(self.gateway.get_device(deviceID))
             setStateCommand = targetDevice.light_control.set_state(state)
             
-
         if deviceID in self.groupIDs:
-            targetGroup = await self.api(*await self.api(self.gateway.get_group(deviceID)))
+            targetGroup = await self.api(self.gateway.get_group(deviceID))
             setStateCommand = targetGroup.set_state(state)
 
         if setStateCommand is not None:
-            await api(setStateCommand)
+            await self.api(setStateCommand)
 
         client.send_data(answer)
+
+    async def setLevel(self, client, command):
+        answer = {}
+        answer["action"] = "setLevel"
+        answer["status"] = "Ok"
+        answer["deviceID"] = command['deviceID']
+
+        deviceID = int(command['deviceID'])
+        level = int(command['level'])
+        setStateCommand = None
+
+        if deviceID in self.deviceIDs:
+            print("Device")
+            targetDevice = await self.api(self.gateway.get_device(deviceID))
+            setStateCommand = targetDevice.light_control.set_dimmer(level)
+            
+        if deviceID in self.groupIDs:
+            print("Group")
+            targetGroup = await self.api(self.gateway.get_group(deviceID))
+            setStateCommand = targetGroup.set_dimmer(level)
+
+        if setStateCommand is not None:
+            await self.api(setStateCommand)
+
+        client.send_data(answer)
+
+    async def setWB(self, client, command):
+        print("SetWB")
 
     # Observations
 
@@ -208,6 +249,12 @@ class IkeaProtocol(asyncio.Protocol):
             if command['action']=="setState":
                 loop.create_task(self.factory.setState(self, command))
 
+            if command['action']=="setLevel":
+                loop.create_task(self.factory.setLevel(self, command))
+
+            if command['action']=="setWB":
+                loop.create_task(self.factory.setWB(self, command))
+
             # if command['action']=="getLights":
             #     self.factory.sendDeviceList(self)
 
@@ -223,12 +270,19 @@ class IkeaProtocol(asyncio.Protocol):
     def connection_lost(self, exc):
         self.transport.close()
         #server.close()
+        
+        cleanupTasks()
         print("Disconnected")
+        
+        loop.create_task(heartbeat(verbose=True))
 
     def send_data(self, dict):
         self.transport.write(json.dumps(dict).encode(encoding='utf_8'))
 
+
+
 loop = asyncio.get_event_loop()
+loop.create_task(heartbeat(verbose=True))
 # Each client connection will create a new protocol instance
 coro = loop.create_server(IkeaProtocol, '', 1234)
 server = loop.run_until_complete(coro)
@@ -241,6 +295,7 @@ except KeyboardInterrupt:
     pass
 
 # Close the server
+cleanupTasks()
 server.close()
 loop.run_until_complete(server.wait_closed())
 loop.close()

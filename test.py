@@ -40,8 +40,17 @@ class EchoClientProtocol(asyncio.Protocol):
                 self.send_data({"action":"getLights"})
 
             if command['action']=="getLights":
-                self.send_data({'action': 'setState', 'state': 'Off', 'deviceID': '65537'})
+                self.send_data({'action': 'setState', 'state': 'On', 'deviceID': '65537'})
 
+            if command['action']=="setState":
+                    if command['deviceID']=="65537":
+                        self.send_data({'action': 'setState', 'state': 'On', 'deviceID': '158578'})
+
+                    if command['deviceID']=="158578":
+                        self.send_data({'action': 'setLevel', 'deviceID': '65537', 'level': 152})
+
+            if command['action']=="setLevel":
+                   self.send_data({"action": "setWB", "deviceID": "65537", "hex": "f5faf6"})
 
     def connection_lost(self, exc):
         print('The server closed the connection')
