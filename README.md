@@ -9,9 +9,10 @@ The repository contains two primary branches. The 'master' branch is targeted at
 
 ## Requirements:
 1. Domoticz compiled with support for Python-Plugins / lastest beta
-2. Python library pytradfri by ggravlingen (https://github.com/ggravlingen/pytradfri). Required version: 4.0.2 or greater.
+2. Python library pytradfri by ggravlingen (https://github.com/ggravlingen/pytradfri). Required version: 4.0.2 or greater with dTLS support
 3. Twisted (https://twistedmatrix.com/trac/)
-3. IKEA-Tradfri-plugin (https://github.com/moroen/IKEA-Tradfri-plugin)
+4. IKEA-Tradfri-plugin (https://github.com/moroen/IKEA-Tradfri-plugin)
+
 
 ## Local Installation
 ### 1. Install libcoap as per ggravlingen's description
