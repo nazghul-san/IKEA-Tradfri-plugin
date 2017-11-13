@@ -45,7 +45,9 @@ Note: Dpending on setup, it might be necessary to install twisted using sudo.
 ```
 ~/$ coap-client -m post -u "Client_identity" -k "GATEWAY-KEY" -e '{"9090":"IDENT"}' "coaps://IP:5684/15011/9063"
 ```
-where GATEWAY-KEY is the security-key located on the bottom of the gateway, IDENT is the desired identifikation-name, and IP the address of the gateway.
+where GATEWAY-KEY is the security-key located on the bottom of the gateway, IDENT is the desired identifikation-name, and IP the address of the gateway. The Gateway as of version 1.2.42 gives out this PreShared key / IDENT combination only ONCE. 
+
+Reset the gateway and the app to reuse values for IDENT.
 
 A sucessfull call will return the preshared key (PSK) for IDENT:
 ```
